@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# vim: set expandtab tabstop=4 shiftwidth=4:
+set -euo pipefail
+cd "$(realpath $(dirname "$0"))"
+
+if [ $EUID -ne 0 ]; then
+  echo "This script must be run as root." >&2
+  exit 1
+fi
+set -x
+
+if [ "${1:-}" = "--reflector" ]; then
+    reflector --country 'United States' \
+              --latest 10 \
+              --sort rate \
+              --save /etc/pacman.d/mirrorlist
+fi
+
+pacman -Syu --noconfirm
+    
+# System basics
+pacman -S --needed \
+     btrfs-progs reflector sudo gvim
+
+# Devices
+rfkill unblock wlan bluetooth
+pacman -S --needed \
+    networkmanager \
+    pipewire pipewire-jack pipewire-pulse wireplumber \
+    sof-firmware bluez bluez-utils
+systemctl enable NetworkManager
+systemctl enable bluetooth
+
+# CLI
+pacman -S --needed \
+    less man-db man-pages git sudo \
+    fzf fd jq ripgrep zoxide
+
+# Services
+pacman -Syu --needed \
+    tailscale syncthing
+systemctl enable tailscaled
+systemctl enable syncthing@daily
+
+# GUI basics
+pacman -S --needed \
+    ttf-dejavu ttf-liberation ttf-roboto ttf-font-awesome ttf-nerd-fonts-symbols \
+    wl-clipboard xdg-utils xdg-desktop-portal xdg-desktop-portal-wlr \
+    alacritty nautilus fuzzel niri swayidle swaylock waybar \
+    firefox
+cp etc__systemd__system__niri-session@.service /etc/systemd/system/niri-session@.service
+systemctl enable niri-session@tty1
+systemctl disable getty@tty1
+
+# GUI for devices
+pacman -S --needed \
+    pavucontrol network-manager-applet gnome-keyring
+
+# GUI Flatpak apps (prefered for isolation)
+FP_APP_IDS=(
+    com.github.tchx84.Flatseal
+    com.logseq.Logseq
+    org.keepassxc.KeePassXC
+)
+pacman -S --needed flatpak
+for app in "${FP_APP_IDS[@]}"; do
+    flatpak info "$app" &> /dev/null \
+        || flatpak install --noninteractive flathub "$app"
+done
+flatpak update
+

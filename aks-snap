@@ -1,0 +1,8 @@
+#!/usr/bin/bash
+set -euxo pipefail
+
+if ! ls -d /mnt/@*; then
+    mount /dev/mapper/cryptroot /mnt
+fi
+btrfs subvolume snapshot -r /mnt/@data /mnt/@data-$(date +%y%m%d-%H%M)
+umount /mnt

@@ -1,0 +1,18 @@
+#!/usr/bin/bash
+set -euxo pipefail
+
+if test -z "$1"; then
+    sudo btrfs subvolume list -a / |grep -o '<FS_TREE>/@arch[^/]*$' |cut -d/ -f2
+    return
+fi
+
+local self="$(sudo btrfs subvolume show / |head -1)"
+if test "$1" = "$self"; then
+    echo 'Cannot delete active root subvolume.'
+    exit 1
+fi
+sudo mount /dev/mapper/cryptroot /mnt
+for subvol in "$@"; do
+    sudo btrfs subvolume delete /mnt/"@$subvol"/var/lib/{machines,portables} /mnt/"@$subvol"
+done
+sudo umount /mnt

@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+set -euxo pipefail
+
+if ! ls -d /mnt/@*; then
+    mount /dev/mapper/cryptroot /mnt
+fi
+select choice in $(btrfs subvolume list /mnt |grep @[^/]*$ |awk '{print $9}'); do
+    echo $choice
+    btrfs subvolume delete /mnt/$choice/var/lib/portables 2>/dev/null || true
+    btrfs subvolume delete /mnt/$choice/var/lib/machines  2>/dev/null || true
+    btrfs subvolume delete /mnt/$choice
+    break
+done
+umount /mnt
